@@ -69,7 +69,7 @@ def filterData(data,fs):
     return dataFilt
 
 
-def findPeaks(time,data,fs,start,end,minProminence=0.05*9.8):
+def findPeaks(time,data,fs,start,end,timeTTX,minProminence=0.05*9.8):
     '''
     Find all the peaks using the scipy function find_peaks.  The peaks have to be
     at least 10 seconds appart, the width of the peak has to be at least 5 seconds,
@@ -88,6 +88,8 @@ def findPeaks(time,data,fs,start,end,minProminence=0.05*9.8):
         Start time for analysis in seconds.
     end : float
         End time for analysis in seconds.
+    timeTTX : float
+        Time of stimulus in seconds.
     minProminence : float
         Minimum amplitude to be considered a contraction (default 0.05 g).
 
@@ -119,10 +121,17 @@ def findPeaks(time,data,fs,start,end,minProminence=0.05*9.8):
     right = right[area>=3]
     pks = pks[area>=3]
 
+    #find the peak after vasopressin and insert nan before
+    if timeTTX!=None:
+        pkPostTTX = np.where(pks>int(timeTTX*fs))[0][0]
+        left = np.hstack([left[:pkPostTTX],np.nan,left[pkPostTTX:]])
+        right = np.hstack([right[:pkPostTTX],np.nan,right[pkPostTTX:]])
+        pks = np.hstack([pks[:pkPostTTX],np.nan,pks[pkPostTTX:]])
+
     return pks, left, right
 
 
-def calculateFeatures(time,data,fs,pks,left,right,timeTTX,filename):
+def calculateFeatures(time,data,fs,pks,left,right,filename):
     '''
     Calculate features for each detected contraction and save as csv file.
 
@@ -140,8 +149,6 @@ def calculateFeatures(time,data,fs,pks,left,right,timeTTX,filename):
         Left location corresponding to each peak at half of the amplitude.
     right : array_like
         Right location corresponding to each peak at half of the amplitude.
-    timeTTX : float
-        Time of stimulus in seconds.
     filename : string
         Name of the file for saving csv.
 
@@ -150,13 +157,6 @@ def calculateFeatures(time,data,fs,pks,left,right,timeTTX,filename):
     featuresDF : DataFrame
         Pandas DataFrame with features for each peak.
     '''
-
-    #find the peak after vasopressin and insert nan before
-    if np.isnan(timeTTX)==False:
-        pkPostTTX = np.where(pks>int(timeTTX*fs))[0][0]
-        left = np.hstack([left[:pkPostTTX],np.nan,left[pkPostTTX:]])
-        right = np.hstack([right[:pkPostTTX],np.nan,right[pkPostTTX:]])
-        pks = np.hstack([pks[:pkPostTTX],np.nan,pks[pkPostTTX:]])
 
     #define function for exponential fit
     def func(x, a, b, c):
@@ -241,8 +241,9 @@ def runAll(filename,start,end,timeTTX,minProminence=0.05*9.8):
 
     data, time, fs = loadData(filename+'.mat')
     data = filterData(data,fs)
-    pks,left,right = findPeaks(time,data,fs,start,end,minProminence)
-    featuresDF = calculateFeatures(time,data,fs,pks,left,right,timeTTX,filename)
+    pks,left,right = findPeaks(time,data,fs,start,end,timeTTX,minProminence)
+    featuresDF = calculateFeatures(time,data,fs,pks,left,right,filename)
     plot.plotOverall(time,data,start,end,pks,timeTTX,filename)
     plot.plotAll(time,data,fs,pks,left,right,featuresDF,filename)
-    plot.plotTTX(data,fs,pks,timeTTX,filename,timePre=10,timePost=18)
+    if timeTTX!=None:
+        plot.plotTTX(data,fs,pks,timeTTX,filename,timePre=10,timePost=18)

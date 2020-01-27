@@ -35,7 +35,8 @@ def plotOverall(time,data,start,end,pks,timeTTX,filename):
 
     fig,ax = plt.subplots(figsize=(time[-1]/60/5,np.nanmax(data)/5))
     ax.plot(time/60,data,zorder=1,linewidth=1)
-    ax.scatter(time[pks]/60,data[pks],color='#d62728',s=10,zorder=2)
+    ax.scatter(time[pks[np.isfinite(pks)].astype(int)]/60,data[pks[np.isfinite(pks)].astype(int)],
+               color='#d62728',s=10,zorder=2)
     ax.set_xlabel('Time (min)')
     ax.set_ylabel('Force (mN)')
     ax.set_xticks(np.arange(0,time[-1]/60,10))
@@ -44,7 +45,7 @@ def plotOverall(time,data,start,end,pks,timeTTX,filename):
     ax.set_ylim([0,np.nanmax(data)])
     ax.set_title(filename)
     ax.grid(True)
-    if np.isnan(timeTTX)==False: ax.axvline(timeTTX/60,color='black')
+    if timeTTX!=None: ax.axvline(timeTTX/60,color='black')
     ax.set_axisbelow(True)
     fig.tight_layout()
     
