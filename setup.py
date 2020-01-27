@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
 	name = 'GISMCA',
-	version = '0.1.0',
+	version = '0.2.0',
 	description = 'Automated analysis of in vitro gastrointestinal smooth muscle contractions.',
 	url = 'https://github.com/agharibans/GISMCA.git',
 	author = 'Armen Gharibans',

@@ -5,6 +5,8 @@ from scipy.optimize import curve_fit
 import pandas as pd
 import os
 from GISMCA import plot
+from GISMCA import __version__
+
 
 def loadData(filename):
     '''
@@ -194,7 +196,7 @@ def calculateFeatures(time,data,fs,pks,left,right,timeTTX,filename):
         featuresDF = featuresDF.append(features,ignore_index=True)
 
     featuresDF['Peak #'] = featuresDF['Peak #'].astype('int')
-    featuresDF['Time To Next Peak (s)'] = np.append(np.diff(featuresDF['Time - Peak (s)']),np.nan)
+    featuresDF['Time To Next Peak (s)'] = np.append(np.round(np.diff(featuresDF['Time - Peak (s)']),1),np.nan)
     featuresDF = featuresDF.set_index('Peak #')
     featuresDF = featuresDF[['Time - Start (s)','Time - Peak (s)','Time - End (s)','Time To Next Peak (s)',
                             'Duration - Onset (s)','Duration - Decay (s)','Duration - Total (s)',
@@ -207,7 +209,7 @@ def calculateFeatures(time,data,fs,pks,left,right,timeTTX,filename):
         os.mkdir(filename)
 
     #save CSV
-    featuresDF.to_csv('./'+filename+'/'+filename+' - features.csv')
+    featuresDF.to_csv('./'+filename+'/'+filename+' - features - v'+__version__+'.csv')
 
     return featuresDF
 
