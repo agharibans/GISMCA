@@ -69,7 +69,7 @@ def filterData(data,fs):
     return dataFilt
 
 
-def findPeaks(time,data,fs,start,end,timeTTX,minProminence=0.05*9.8):
+def findPeaks(time,data,fs,start,end,events,minProminence=0.05*9.8):
     '''
     Find all the peaks using the scipy function find_peaks.  The peaks have to be
     at least 10 seconds appart, the width of the peak has to be at least 5 seconds,
@@ -88,8 +88,8 @@ def findPeaks(time,data,fs,start,end,timeTTX,minProminence=0.05*9.8):
         Start time for analysis in seconds.
     end : float
         End time for analysis in seconds.
-    timeTTX : float
-        Time of stimulus in seconds.
+    events : list
+        Times of events in seconds.
     minProminence : float
         Minimum amplitude to be considered a contraction (default 0.05 g).
 
@@ -121,12 +121,13 @@ def findPeaks(time,data,fs,start,end,timeTTX,minProminence=0.05*9.8):
     right = right[area>=3]
     pks = pks[area>=3]
 
-    #find the peak after vasopressin and insert nan before
-    if timeTTX!=None:
-        pkPostTTX = np.where(pks>int(timeTTX*fs))[0][0]
-        left = np.hstack([left[:pkPostTTX],np.nan,left[pkPostTTX:]])
-        right = np.hstack([right[:pkPostTTX],np.nan,right[pkPostTTX:]])
-        pks = np.hstack([pks[:pkPostTTX],np.nan,pks[pkPostTTX:]])
+    #find the peak after events and insert nan before
+    for event in events:
+        if event!=None:
+            pkPostEvent = np.where(pks>int(event*fs))[0][0]
+            left = np.hstack([left[:pkPostEvent],np.nan,left[pkPostEvent:]])
+            right = np.hstack([right[:pkPostEvent],np.nan,right[pkPostEvent:]])
+            pks = np.hstack([pks[:pkPostEvent],np.nan,pks[pkPostEvent:]])
 
     return pks, left, right
 
@@ -214,7 +215,7 @@ def calculateFeatures(time,data,fs,pks,left,right,filename):
     return featuresDF
 
 
-def runAll(filename,start,end,timeTTX,minProminence=0.05*9.8):
+def runAll(filename,start,end,events,minProminence=0.05*9.8,timePre=10,timePost=18):
     '''
     Run entire analysis and plotting pipeline for analyzing in vitro gastrointestinal
     smooth muscle contraction data.  This function saves figures and data in a directory
@@ -228,10 +229,14 @@ def runAll(filename,start,end,timeTTX,minProminence=0.05*9.8):
         Start time for analysis in seconds.
     end : float
         End time for analysis in seconds.
-    timeTTX : float
-        Time of stimulus in seconds.
+    events : list
+        Times of events in seconds.
     minProminence : float
         Minimum amplitude to be considered a contraction (default 0.05 g).
+    timePre : float
+        Time in seconds before the peak to plot (default 10s).
+    timePost : float
+        Time in seconds after the peak to plot (default 18s).
     
     Returns
     -------
@@ -241,9 +246,8 @@ def runAll(filename,start,end,timeTTX,minProminence=0.05*9.8):
 
     data, time, fs = loadData(filename+'.mat')
     data = filterData(data,fs)
-    pks,left,right = findPeaks(time,data,fs,start,end,timeTTX,minProminence)
+    pks,left,right = findPeaks(time,data,fs,start,end,events,minProminence)
     featuresDF = calculateFeatures(time,data,fs,pks,left,right,filename)
-    plot.plotOverall(time,data,start,end,pks,timeTTX,filename)
+    plot.plotOverall(time,data,start,end,pks,events,filename)
     plot.plotAll(time,data,fs,pks,left,right,featuresDF,filename)
-    if timeTTX!=None:
-        plot.plotTTX(data,fs,pks,timeTTX,filename,timePre=10,timePost=18)
+    plot.plotEvents(data,fs,pks,events,filename,timePre=10,timePost=18)

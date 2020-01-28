@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from skimage.measure import label
 from GISMCA import __version__
 
-def plotOverall(time,data,start,end,pks,timeTTX,filename):
+def plotOverall(time,data,start,end,pks,events,filename):
     '''
     Saves a figure that shows the data with identified peaks.
 
@@ -19,8 +20,8 @@ def plotOverall(time,data,start,end,pks,timeTTX,filename):
         End time for analysis in seconds.
     pks : array_like
         Identified location of peaks for each contraction.
-    timeTTX : float
-        Time of stimulus in seconds.
+    events : list
+        Times of events in seconds.
     filename : string
         Name of the file for saving the figure.
 
@@ -45,7 +46,7 @@ def plotOverall(time,data,start,end,pks,timeTTX,filename):
     ax.set_ylim([0,np.nanmax(data)])
     ax.set_title(filename)
     ax.grid(True)
-    if timeTTX!=None: ax.axvline(timeTTX/60,color='black')
+    if events[0]!=None: [ax.axvline(event/60,color='black') for event in events]
     ax.set_axisbelow(True)
     fig.tight_layout()
     
@@ -137,7 +138,7 @@ def plotAll(time,data,fs,pks,left,right,featuresDF,filename):
             plt.close()
 
 
-def plotTTX(data,fs,pks,timeTTX,filename,timePre=10,timePost=18):
+def plotEvents(data,fs,pks,events,filename,timePre=10,timePost=18):
     '''
     Save figure for the mean contraction before and after stimulus.
 
@@ -149,8 +150,8 @@ def plotTTX(data,fs,pks,timeTTX,filename,timePre=10,timePost=18):
         Sampling frequency.
     pks : array_like
         Identified location of peaks for each contraction.
-    timeTTX : float
-        Time of stimulus in seconds.
+    events : list
+        Times of events in seconds.
     filename : string
         Name of the file for saving the figure.
     timePre : float
@@ -163,48 +164,36 @@ def plotTTX(data,fs,pks,timeTTX,filename,timePre=10,timePost=18):
     None
     '''
 
-    pkPostTTX = np.where(pks>int(timeTTX*fs))[0][0]
+    groups = label(np.isfinite(pks),background=0)
+    numGroups = np.max(groups)
+    fig,ax = plt.subplots(ncols=numGroups,figsize=(3.5*numGroups,3.5),sharey=True)
 
-    pre = []
-    post = []
-    for ind in range(0,len(pks)-1):
-        if np.isnan(pks[ind])==False:
-            samples = np.arange(int(pks[ind]-timePre*fs),int(pks[ind]+timePost*fs))
-            if ind < pkPostTTX:
-                pre.append(data[samples])
-            if ind > pkPostTTX:
-                post.append(data[samples])
+    for ii in range(0,numGroups):
+        group = []
+        pltPks = np.where(groups==ii+1)[0]
+        for pk in pks[pltPks]:
+            samples = np.arange(int(pk-timePre*fs),int(pk+timePost*fs))
+            group.append(data[samples])
+        group = np.vstack(group)
+        
+        #mean centering
+        group -= np.mean(group,axis=1, keepdims=True)
+        
+        tPlot = np.arange(-timePre*fs,timePost*fs)/fs
+        meanGroup = np.nanmean(group,axis=0) - np.nanmean(group,axis=0)[0]
 
-    pre = np.vstack(pre)
-    post = np.vstack(post)
+        #plot
+        ax[ii].plot(tPlot,meanGroup)
+        ax[ii].fill_between(tPlot,meanGroup-np.nanstd(group,axis=0),
+                           meanGroup+np.nanstd(group,axis=0),alpha=0.15)
+        ax[ii].set_xlabel('Time (s)')
+        ax[ii].yaxis.set_tick_params(which='both',labelleft=True)
+        ax[ii].set_ylabel('Force (mN)')
+        ax[ii].set_title('Group '+str(ii+1)+' ('+str(len(group))+' peaks)')
+        ax[ii].set_xlim([tPlot[0],tPlot[-1]])
 
-    #mean centering
-    pre -= np.mean(pre,axis=1, keepdims=True)
-    post -= np.mean(post,axis=1, keepdims=True)
-
-    #plot
-    fig,ax = plt.subplots(ncols=2,figsize=(7,3.5),sharey=True)
-
-    tPlot = np.arange(-timePre*fs,timePost*fs)/fs
-
-    meanPre = np.nanmean(pre,axis=0) - np.nanmean(pre,axis=0)[0]
-    meanPost = np.nanmean(post,axis=0) - np.nanmean(post,axis=0)[0]
-
-    ax[0].plot(tPlot,meanPre)
-    ax[0].fill_between(tPlot,meanPre-np.nanstd(pre,axis=0),meanPre+np.nanstd(pre,axis=0),alpha=0.15)
-    ax[0].set_xlabel('Time (s)')
-    ax[0].set_ylabel('Force (mN)')
-    ax[0].set_title('Pre')
-    ax[0].set_xlim([tPlot[0],tPlot[-1]])
-
-    ax[1].plot(tPlot,meanPost)
-    ax[1].fill_between(tPlot,meanPost-np.nanstd(post,axis=0),meanPost+np.nanstd(post,axis=0),alpha=0.15)
-    ax[1].set_xlabel('Time (s)')
-    ax[1].set_title('Post')
-    ax[1].set_xlim([tPlot[0],tPlot[-1]])
-
-    fig.tight_layout()
-    plt.savefig('./'+filename+'/'+filename+' - pre-post - v'+__version__+'.jpg',
-                dpi=300,quality=80,optimize=True,bbox_inches='tight')
-    
-    plt.close()
+        fig.tight_layout()
+        plt.savefig('./'+filename+'/'+filename+' - groups - v'+__version__+'.jpg',
+                    dpi=300,quality=80,optimize=True,bbox_inches='tight')
+        
+        plt.close()
