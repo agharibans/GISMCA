@@ -29,13 +29,16 @@ def loadData(filename):
     '''
     
     data = loadmat(filename)
-    fs = int(1/(data['isi'][0][0]/1000)) #sampline frequency
-    data = data['data'][:,0]*9.8 #convert from grams to milliNewtons
+    fs = int(1/(data['isi'][0][0]/1000)) #sampling frequency
+    data = data['data']*9.8 #convert from grams to milliNewtons
+
+    if data.shape[0]<data.shape[1]:
+    	data = data.T
 
     #decimate
     if fs==100:
-        data = signal.decimate(data,4,n=499,ftype='fir')
-        data = signal.decimate(data,5,n=499,ftype='fir')
+        data = signal.decimate(data,4,n=499,ftype='fir',axis=0)
+        data = signal.decimate(data,5,n=499,ftype='fir',axis=0)
         fs = 5
 
     time = np.arange(0,data.shape[0]/fs,1/fs)
@@ -69,7 +72,7 @@ def filterData(data,fs):
     return dataFilt
 
 
-def findPeaks(time,data,fs,start,end,events,minProminence=0.05*9.8):
+def findPeaks(time,data,fs,start,end,events,minHeight=0.05*9.8,minDistance=10):
     '''
     Find all the peaks using the scipy function find_peaks.  The peaks have to be
     at least 10 seconds appart, the width of the peak has to be at least 5 seconds,
@@ -90,8 +93,10 @@ def findPeaks(time,data,fs,start,end,events,minProminence=0.05*9.8):
         End time for analysis in seconds.
     events : list
         Times of events in seconds.
-    minProminence : float
-        Minimum amplitude to be considered a contraction (default 0.05 g).
+    minHeight : float
+        Minimum height to be considered a contraction (default 0.05 g).
+    minDistance : float
+    	Minimum time in seconds between peaks (default 10 seconds).
 
     Returns
     -------
@@ -105,7 +110,7 @@ def findPeaks(time,data,fs,start,end,events,minProminence=0.05*9.8):
     
     data[(time<start)|(time>end)] = np.nan
     
-    pks = signal.find_peaks(data,distance=10*fs,prominence=minProminence,
+    pks = signal.find_peaks(data,distance=minDistance*fs,prominence=minHeight,
                             wlen=30*fs,width=5*fs,rel_height=0.98)
     left = (pks[1]['left_ips']).astype('int')
     right = (pks[1]['right_ips']).astype('int')
@@ -215,7 +220,7 @@ def calculateFeatures(time,data,fs,pks,left,right,filename):
     return featuresDF
 
 
-def runAll(filename,start,end,events,minProminence=0.05*9.8,timePre=10,timePost=18):
+def runAll(filename,start,end,events,minHeight=0.05*9.8,minDistance=10):
     '''
     Run entire analysis and plotting pipeline for analyzing in vitro gastrointestinal
     smooth muscle contraction data.  This function saves figures and data in a directory
@@ -231,23 +236,32 @@ def runAll(filename,start,end,events,minProminence=0.05*9.8,timePre=10,timePost=
         End time for analysis in seconds.
     events : list
         Times of events in seconds.
-    minProminence : float
-        Minimum amplitude to be considered a contraction (default 0.05 g).
-    timePre : float
-        Time in seconds before the peak to plot (default 10s).
-    timePost : float
-        Time in seconds after the peak to plot (default 18s).
+    minHeight : float
+        Minimum height to be considered a contraction (default 0.05 g).
+    minDistance : float
+    	Minimum time in seconds between peaks (default 10 seconds).
     
     Returns
     -------
     None
 
+    Raises
+    ------
+    Exception
+        If specified end time is after the end of the data.
+
     '''
 
     data, time, fs = loadData(filename+'.mat')
     data = filterData(data,fs)
-    pks,left,right = findPeaks(time,data,fs,start,end,events,minProminence)
-    featuresDF = calculateFeatures(time,data,fs,pks,left,right,filename)
-    plot.plotOverall(time,data,start,end,pks,events,filename)
-    plot.plotAll(time,data,fs,pks,left,right,featuresDF,filename)
-    plot.plotEvents(data,fs,pks,events,filename,timePre=10,timePost=18)
+
+    if end > data.shape[0]/fs:
+        raise Exception('Specified end time greater than recording duration.')
+
+    for ch in range(0,data.shape[1]):
+        filenameCh = filename + ' - '+str(ch+1)
+        pks,left,right = findPeaks(time,data[:,ch],fs,start,end,events,minHeight,minDistance)
+        featuresDF = calculateFeatures(time,data[:,ch],fs,pks,left,right,filenameCh)
+        plot.plotOverall(time,data[:,ch],start,end,pks,events,filenameCh)
+        plot.plotAll(time,data[:,ch],fs,pks,left,right,featuresDF,filenameCh)
+        plot.plotEvents(data[:,ch],fs,pks,events,filenameCh,featuresDF)

@@ -131,13 +131,13 @@ def plotAll(time,data,fs,pks,left,right,featuresDF,filename):
 
         if (ii==9)&(jj==9) or (ind+1==len(pks)):
             fig.tight_layout()
-            plt.savefig('./'+filename+'/'+filename+' - '+str(plot)+' - v'+__version__+'.jpg',
+            plt.savefig('./'+filename+'/'+filename+' - all'+str(plot)+' - v'+__version__+'.jpg',
                         dpi=100,quality=80,optimize=True,bbox_inches='tight')
             plot+=1
             plt.close()
 
 
-def plotEvents(data,fs,pks,events,filename,timePre=10,timePost=18):
+def plotEvents(data,fs,pks,events,filename,featuresDF):
     '''
     Save figure for the mean contraction before and after stimulus.
 
@@ -153,16 +153,18 @@ def plotEvents(data,fs,pks,events,filename,timePre=10,timePost=18):
         Times of events in seconds.
     filename : string
         Name of the file for saving the figure.
-    timePre : float
-        Time in seconds before the peak to plot (default 10s).
-    timePost : float
-        Time in seconds after the peak to plot (default 18s).
+    featuresDF : DataFrame
+        Pandas dataframe with all contraction features.
 
     Returns
     -------
     None
     '''
-    
+
+    #duration before and after peak for group plot
+    timePre = np.nanpercentile(featuresDF['Duration - Onset (s)'],97.5)*fs
+    timePost = np.nanpercentile(featuresDF['Duration - Decay (s)'],97.5)*fs
+
     groups = label(np.isfinite(pks),background=0)
     numGroups = np.max(groups)
     fig,ax = plt.subplots(ncols=numGroups,figsize=(3.5*numGroups,3.5),sharey=True)
@@ -171,14 +173,14 @@ def plotEvents(data,fs,pks,events,filename,timePre=10,timePost=18):
         group = []
         pltPks = np.where(groups==ii+1)[0]
         for pk in pks[pltPks]:
-            samples = np.arange(int(pk-timePre*fs),int(pk+timePost*fs))
+            samples = np.arange(int(pk-timePre),int(pk+timePost))
             group.append(data[samples])
         group = np.vstack(group)
         
         #mean centering
         group -= np.mean(group,axis=1, keepdims=True)
         
-        tPlot = np.arange(-timePre*fs,timePost*fs)/fs
+        tPlot = np.arange(-timePre,timePost)/fs
         meanGroup = np.nanmean(group,axis=0) - np.nanmean(group,axis=0)[0]
 
         #plot
