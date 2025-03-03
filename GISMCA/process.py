@@ -199,7 +199,7 @@ def calculateFeatures(time,data,fs,pks,left,right,filename):
             features['Area - Decay (mN-s)'] = np.round(np.trapz(data[peak:end]-data[start],dx=1/fs),2)
             features['Area - Total (mN-s)'] = np.round(np.trapz(data[start:end]-data[start],dx=1/fs),2)
 
-        featuresDF = featuresDF.append(features,ignore_index=True)
+        featuresDF = pd.concat([featuresDF, pd.DataFrame([features])], ignore_index=True)
 
     featuresDF['Peak #'] = featuresDF['Peak #'].astype('int')
     featuresDF['Time To Next Peak (s)'] = np.append(np.round(np.diff(featuresDF['Time - Peak (s)']),1),np.nan)
