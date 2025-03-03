@@ -51,7 +51,7 @@ def plotOverall(time,data,start,end,pks,events,filename):
     fig.tight_layout()
     
     plt.savefig('./'+filename+'/'+filename+' - overall - v'+__version__+'.jpg',
-                dpi=200,quality=80,optimize=True,bbox_inches='tight')
+                dpi=200,optimize=True,bbox_inches='tight')
     plt.close()
 
 
@@ -132,7 +132,7 @@ def plotAll(time,data,fs,pks,left,right,featuresDF,filename):
         if (ii==9)&(jj==9) or (ind+1==len(pks)):
             fig.tight_layout()
             plt.savefig('./'+filename+'/'+filename+' - all'+str(plot)+' - v'+__version__+'.jpg',
-                        dpi=100,quality=80,optimize=True,bbox_inches='tight')
+                        dpi=100,optimize=True,bbox_inches='tight')
             plot+=1
             plt.close()
 
@@ -195,5 +195,5 @@ def plotEvents(data,fs,pks,events,filename,featuresDF):
 
     fig.tight_layout()
     plt.savefig('./'+filename+'/'+filename+' - groups - v'+__version__+'.jpg',
-                dpi=300,quality=80,optimize=True,bbox_inches='tight')
+                dpi=300,optimize=True,bbox_inches='tight')
     plt.close()
